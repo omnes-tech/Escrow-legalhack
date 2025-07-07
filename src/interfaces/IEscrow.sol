@@ -1,16 +1,20 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.27;
 
+/**
+ * @title IEscrow
+ * @notice Interface for the main Escrow contract
+ */
 interface IEscrow {
-// Add struct definition before using it
+    // Add struct definition before using it
     struct InstallmentDetail {
         uint256 dueDate;    // Timestamp de vencimento
         uint256 amount;     // Valor da parcela
         bool paid;          // Status de pagamento
     }
 
+    // Add EscrowInfo struct definition
     struct EscrowInfo {
-        
         // PARTES ENVOLVIDAS
         address depositor;              // 👤 Comprador
         address beneficiary;            // 👤 Vendedor
@@ -20,7 +24,7 @@ interface IEscrow {
         EscrowState state;              // 📊 Estado atual
         bool requiresGuarantee;         // 🛡️ Exige garantia?
         bool isGuaranteeProvided;       // ✅ Garantia foi dada?
-
+        
         // CONFIGURAÇÃO FINANCEIRA
         address paymentToken;           // 💰 Token de pagamento
         uint256 totalAmount;            // 💰 Valor total
@@ -29,7 +33,6 @@ interface IEscrow {
         
         // CRONOGRAMA E JUROS
         uint256 paymentIntervalSeconds; // ⏰ Intervalo entre parcelas
-        //Unix timestamp
         uint256 dailyInterestFeeBP;     // 📈 Taxa de juros diária
         InterestModel interestModel;    // 🧮 Modelo de juros
         
@@ -58,9 +61,7 @@ interface IEscrow {
         uint256 settlementAmountToSender;    // 💰 Quanto para comprador
         uint256 settlementAmountToReceiver;  // 💰 Quanto para vendedor
         address settlementProposedBy;        // 👤 Quem propôs
-
     }
-
 
     // Structs
     struct EscrowParams {
@@ -77,20 +78,19 @@ interface IEscrow {
         bool useCustomSchedule;              // ⚙️ Cronograma personalizado?
     }
 
-    enum EscrowState {
-        INACTIVE, // 0 -- criada
-        ACTIVE, // 1 -- ativa
-        DISPUTED, // 2 -- em disputa
-        COMPLETE // 3 -- concluida
-    }
-
+    // Enums
     enum TokenType {
-        ERC20, // 0 -- token ERC20
-        ERC721, // 1 -- token ERC721
-        ERC1155, // 2 -- token ERC1155
-        ETH // 3 -- ETH
+        ERC20,      // 🪙 Tokens fungíveis
+        ERC721,     // 🖼️ NFTs únicos
+        ERC1155,    // 📦 Tokens semi-fungíveis
+        ETH         // ⚡ Ethereum nativo
     }
-
+    enum EscrowState {
+        INACTIVE,   // 😴 Criada, aguardando início
+        ACTIVE,     // 🏃 Funcionando normalmente  
+        DISPUTED,   // ⚔️ Em conflito
+        COMPLETE    // ✅ Finalizada
+    }
     enum InterestModel {
         SIMPLE,     // 📈 Juros simples
         COMPOUND    // 📈📈 Juros compostos
@@ -218,12 +218,11 @@ interface IEscrow {
         address indexed owner,        // 👤 Proprietário
         uint256 amount               // 💰 Valor sacado
     );
-    
-    
+
+  
 
     // FUNÇÕES DE CRIAÇÃO E ATIVAÇÃO
     function createEscrow(EscrowParams calldata params, InstallmentDetail[] calldata customInstallments) external returns (uint256);
-    
     function startEscrow(uint256 escrowId) external;
 
     
@@ -257,5 +256,3 @@ interface IEscrow {
     function calculateInstallmentWithInterest(uint256 _escrowId) external view returns (uint256 amountDue, uint256 interest);
     function getEscrowInfo(uint256 _escrowId) external view returns (EscrowInfo memory);
 }
-
-

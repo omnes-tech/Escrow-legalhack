@@ -1,13 +1,36 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.27;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {IEscrow} from "../interfaces/IEscrow.sol";
-import {IEscrowErrors} from "../interfaces/IEscrowErrors.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "../interfaces/IEscrow.sol";
+import "../interfaces/IEscrowErrors.sol";
 
-
-abstract contract BaseEscrow is IEscrow, IEscrowErrors, Ownable, ReentrancyGuard {
+/**
+ * @title BaseEscrow - A Fundação Sólida do Escrow
+ * @notice Contrato abstrato com funcionalidades base para o sistema de custódia
+ * 
+ * 🏛️ ANALOGIA: É como as fundações de um prédio - você não vê, mas tudo depende dela
+ *              Define as regras básicas que todos os escrows devem seguir
+ * 
+ * RESPONSABILIDADES PRINCIPAIS:
+ * 🔐 Controle de acesso (apenas o dono pode mudar regras importantes)
+ * 🛡️ Proteção contra reentrancy (evita ataques de hackers)
+ * 💰 Gestão de taxas da plataforma
+ * 📋 Lista de tokens permitidos (whitelist de segurança)
+ * 🧮 Cálculos matemáticos básicos
+ * 
+ * HERANÇAS IMPORTADAS:
+ * 👑 Ownable: Sistema de proprietário (apenas o dono pode fazer certas coisas)
+ * 🛡️ ReentrancyGuard: Proteção contra ataques de reentrada
+ * 📜 IEscrow: Interface que define as funções obrigatórias
+ * ❌ IEscrowErrors: Catálogo de erros personalizados
+ */
+abstract contract BaseEscrow is Ownable, ReentrancyGuard, IEscrow, IEscrowErrors {
+    
+    // ========================================================================
+    // VARIÁVEIS DE ESTADO (A Memória do Cartório)
+    // ========================================================================
     
     /**
      * @notice Taxa da plataforma em pontos base (1 ponto base = 0.01%)
@@ -23,7 +46,7 @@ abstract contract BaseEscrow is IEscrow, IEscrowErrors, Ownable, ReentrancyGuard
      * - 1000 = 10% de taxa
      */
     uint256 public platformFeeBP;
-
+    
     /**
      * @notice Próximo ID único que será usado para criar uma custódia
      * @dev Incrementa automaticamente a cada nova custódia criada

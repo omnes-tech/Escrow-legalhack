@@ -1947,577 +1947,574 @@ contract EscrowTest is Test {
     // Evento para os testes
     event EscrowAutoCompleted(uint256 indexed escrowId, string reason);
 
-// ========================================================================
-// 🎓 TESTES DIDÁTICOS E VISUAIS - CENÁRIOS REAIS
-// ========================================================================
+    // ========================================================================
+    // 🎓 TESTES DIDÁTICOS E VISUAIS - CENÁRIOS REAIS
+    // ========================================================================
 
-/**
- * CENARIO: E-COMMERCE COM GARANTIA
- * 
- * ANALOGIA: Ana compra um iPhone de Bruno por R$ 3.000
- * - Pagamento: 3x R$ 1.000 (mensal)  
- * - Garantia: R$ 500 (protecao contra defeitos)
- * - Plataforma: TechEscrow (cobra 2% de taxa)
- * 
- * FLUXO ESPERADO:
- * 1. Bruno cria o escrow (vendedor/árbitro)
- * 2. Ana deposita R$ 500 de garantia 
- * 3. Ana inicia o escrow
- * 4. Ana paga 3 parcelas de R$ 1.000
- * 5. Todos aprovam (produto ok)
- * 6. Bruno saca R$ 2.940 (R$ 3.000 - 2% taxa)
- * 7. Ana recupera R$ 500 de garantia
- */
-function test_EcommerceWithGuarantee_HappyPath() public {
-    console.log("INICIANDO: Cenario de E-commerce - iPhone R$ 3.000");
-    console.log("Ana (Compradora):", depositor);
-    console.log("Bruno (Vendedor):", beneficiary);
-    console.log("TechEscrow (Plataforma):", escrowOwners[0]);
-    console.log("");
+    /**
+     * CENARIO: E-COMMERCE COM GARANTIA
+     *
+     * ANALOGIA: Ana compra um iPhone de Bruno por R$ 3.000
+     * - Pagamento: 3x R$ 1.000 (mensal)
+     * - Garantia: R$ 500 (protecao contra defeitos)
+     * - Plataforma: TechEscrow (cobra 2% de taxa)
+     *
+     * FLUXO ESPERADO:
+     * 1. Bruno cria o escrow (vendedor/árbitro)
+     * 2. Ana deposita R$ 500 de garantia
+     * 3. Ana inicia o escrow
+     * 4. Ana paga 3 parcelas de R$ 1.000
+     * 5. Todos aprovam (produto ok)
+     * 6. Bruno saca R$ 2.940 (R$ 3.000 - 2% taxa)
+     * 7. Ana recupera R$ 500 de garantia
+     */
+    function test_EcommerceWithGuarantee_HappyPath() public {
+        console.log("INICIANDO: Cenario de E-commerce - iPhone R$ 3.000");
+        console.log("Ana (Compradora):", depositor);
+        console.log("Bruno (Vendedor):", beneficiary);
+        console.log("TechEscrow (Plataforma):", escrowOwners[0]);
+        console.log("");
 
-    // ETAPA 1: BRUNO CRIA O ESCROW
-    console.log("ETAPA 1: Bruno cria escrow para venda do iPhone");
-    
-    vm.prank(escrowOwners[0]); // Bruno (vendedor) usando plataforma
-    IEscrow.EscrowParams memory params = IEscrow.EscrowParams({
-        depositor: depositor,           // Ana (compradora)
-        beneficiary: beneficiary,       // Bruno (vendedor)
-        requiresGuarantee: true,        // Exige garantia para proteger Bruno
-        totalAmount: 3000 ether,        // R$ 3.000 (simulando stablecoin)
-        totalInstallments: 3,           // 3 parcelas mensais
-        paymentIntervalSeconds: 30 days, // Parcelas mensais
-        dailyInterestFeeBP: 100,        // 1% ao dia se atrasar
-        allowBeneficiaryWithdrawPartial: false, // Bruno nao pode sacar antes do fim
-        paymentToken: address(0),       // Pagamento em ETH
-        interestModel: IEscrow.InterestModel.SIMPLE, // Juros simples
-        useCustomSchedule: false        // Parcelas iguais
-    });
+        // ETAPA 1: BRUNO CRIA O ESCROW
+        console.log("ETAPA 1: Bruno cria escrow para venda do iPhone");
 
-    uint256 escrowId = escrow.createEscrow(params, new IEscrow.InstallmentDetail[](0));
-    console.log("Escrow criado com ID:", escrowId);
-    
-    IEscrow.EscrowInfo memory info = escrow.escrows(escrowId);
-    console.log("Estado inicial:", uint256(info.state)); // 0 = INACTIVE
-    console.log("Exige garantia:", info.requiresGuarantee);
-    console.log("Valor total:", info.totalAmount / 1 ether, "ETH");
-    console.log("");
+        vm.prank(escrowOwners[0]); // Bruno (vendedor) usando plataforma
+        IEscrow.EscrowParams memory params = IEscrow.EscrowParams({
+            depositor: depositor, // Ana (compradora)
+            beneficiary: beneficiary, // Bruno (vendedor)
+            requiresGuarantee: true, // Exige garantia para proteger Bruno
+            totalAmount: 3000 ether, // R$ 3.000 (simulando stablecoin)
+            totalInstallments: 3, // 3 parcelas mensais
+            paymentIntervalSeconds: 30 days, // Parcelas mensais
+            dailyInterestFeeBP: 100, // 1% ao dia se atrasar
+            allowBeneficiaryWithdrawPartial: false, // Bruno nao pode sacar antes do fim
+            paymentToken: address(0), // Pagamento em ETH
+            interestModel: IEscrow.InterestModel.SIMPLE, // Juros simples
+            useCustomSchedule: false // Parcelas iguais
+        });
 
-    // ETAPA 2: ANA DEPOSITA GARANTIA
-    console.log("ETAPA 2: Ana deposita R$ 500 de garantia");
-    console.log("Ana pensa: 'Se o iPhone vier com defeito, eles ja tem como me compensar'");
-    
-    vm.startPrank(depositor); // Ana
-    uint256 guaranteeAmount = 500 ether; // R$ 500 de garantia
-    uint256 anaBalanceBefore = address(depositor).balance;
-    
-    escrow.provideGuarantee{value: guaranteeAmount}(
-        escrowId, 
-        IEscrow.TokenType.ETH, 
-        address(0), 
-        0, 
-        guaranteeAmount
-    );
-    
-    console.log("Ana gastou:", (anaBalanceBefore - address(depositor).balance) / 1 ether, "ETH");
-    //console.log("Garantia depositada:", escrow.escrowGuarantees(escrowId, address(0), uint256(IEscrow.TokenType.ETH), 0) / 1 ether, "ETH");
-    
-    info = escrow.escrows(escrowId);
-    console.log("Garantia foi aceita:", info.isGuaranteeProvided);
-    console.log("");
+        uint256 escrowId = escrow.createEscrow(params, new IEscrow.InstallmentDetail[](0));
+        console.log("Escrow criado com ID:", escrowId);
 
-    // ETAPA 3: ANA INICIA O ESCROW
-    console.log("ETAPA 3: Ana inicia o escrow (negocio comecou oficialmente!)");
-    
-    escrow.startEscrow(escrowId);
-    
-    info = escrow.escrows(escrowId);
-    console.log("Estado atual:", uint256(info.state)); // 1 = ACTIVE
-    console.log("Iniciado em:", info.startTimestamp);
-    console.log("Bruno pensa: 'Otimo! Posso mandar o iPhone pelo correio'");
-    console.log("");
+        IEscrow.EscrowInfo memory info = escrow.escrows(escrowId);
+        console.log("Estado inicial:", uint256(info.state)); // 0 = INACTIVE
+        console.log("Exige garantia:", info.requiresGuarantee);
+        console.log("Valor total:", info.totalAmount / 1 ether, "ETH");
+        console.log("");
 
-    vm.stopPrank(); // Para o prank da Ana
+        // ETAPA 2: ANA DEPOSITA GARANTIA
+        console.log("ETAPA 2: Ana deposita R$ 500 de garantia");
+        console.log("Ana pensa: 'Se o iPhone vier com defeito, eles ja tem como me compensar'");
 
-    // ETAPA 4: ANA PAGA AS 3 PARCELAS
-    console.log("ETAPA 4: Ana paga as 3 parcelas mensais");
-    
-    uint256 installmentAmount = 3000 ether / 3; // R$ 1.000 por parcela
-    
-    vm.startPrank(depositor); // Ana volta a fazer transacoes
-    
-    // PARCELA 1 - No prazo
-    console.log("Parcela 1/3: R$ 1.000 (no prazo)");
-    uint256 anaBalanceBeforeP1 = address(depositor).balance;
-    escrow.payInstallmentETH{value: installmentAmount}(escrowId);
-    console.log("Ana pagou:", (anaBalanceBeforeP1 - address(depositor).balance) / 1 ether, "ETH");
-    console.log("Saldo do escrow:", escrow.getEscrowBalance(escrowId, address(0)) / 1 ether, "ETH");
-    
-    // PARCELA 2 - No prazo (30 dias depois)
-    vm.warp(block.timestamp + 30 days);
-    console.log("Parcela 2/3: R$ 1.000 (no prazo - 30 dias depois)");
-    uint256 anaBalanceBeforeP2 = address(depositor).balance;
-    escrow.payInstallmentETH{value: installmentAmount}(escrowId);
-    console.log("Ana pagou:", (anaBalanceBeforeP2 - address(depositor).balance) / 1 ether, "ETH");
-    console.log("Saldo do escrow:", escrow.getEscrowBalance(escrowId, address(0)) / 1 ether, "ETH");
-    
-    // PARCELA 3 - Atrasada (vamos simular 5 dias de atraso)
-    vm.warp(block.timestamp + 35 days); // 30 + 5 dias = atrasou 5 dias
-    console.log("Parcela 3/3: ATRASADA por 5 dias (vai ter juros!)");
-    
-    (uint256 amountDue, uint256 interest) = escrow.calculateInstallmentWithInterest(escrowId);
-    console.log("Valor original da parcela:", installmentAmount / 1 ether, "ETH");
-    console.log("Juros por atraso (5 dias x 1%):", interest / 1 ether, "ETH");
-    console.log("Total a pagar:", amountDue / 1 ether, "ETH");
-    console.log("Ana pensa: 'Eita, esqueci de pagar no prazo! Agora tem juros...'");
-    
-    uint256 anaBalanceBeforeP3 = address(depositor).balance;
-    escrow.payInstallmentETH{value: amountDue}(escrowId);
-    console.log("Ana pagou (com juros):", (anaBalanceBeforeP3 - address(depositor).balance) / 1 ether, "ETH");
-    console.log("Saldo FINAL do escrow:", escrow.getEscrowBalance(escrowId, address(0)) / 1 ether, "ETH");
-    
-    info = escrow.escrows(escrowId);
-    console.log("Parcelas pagas:", info.installmentsPaid, "/", info.totalInstallments);
-    console.log("");
+        vm.startPrank(depositor); // Ana
+        uint256 guaranteeAmount = 500 ether; // R$ 500 de garantia
+        uint256 anaBalanceBefore = address(depositor).balance;
 
-    vm.stopPrank(); // Para o prank da Ana
+        escrow.provideGuarantee{value: guaranteeAmount}(escrowId, IEscrow.TokenType.ETH, address(0), 0, guaranteeAmount);
 
-    // ETAPA 5: TODOS APROVAM (iPhone chegou perfeito!)
-    console.log("ETAPA 5: Todos aprovam - iPhone chegou perfeito!");
-    console.log("Ana: 'iPhone chegou novo, sem defeitos!'");
-    console.log("Bruno: 'Recebi todos os pagamentos, cliente satisfeita!'");
-    console.log("TechEscrow: 'Transacao ocorreu sem problemas!'");
-    
-    // Ana aprova
-    vm.prank(depositor);
-    escrow.setReleaseApproval(escrowId, true);
-    console.log("Ana aprovou o recebimento");
-    
-    // Bruno aprova  
-    vm.prank(beneficiary);
-    escrow.setReleaseApproval(escrowId, true);
-    console.log("Bruno aprovou a entrega");
-    
-    // TechEscrow aprova
-    vm.prank(escrowOwners[0]);
-    escrow.setReleaseApproval(escrowId, true);
-    console.log("TechEscrow aprovou a transacao");
-    
-    // VERIFICAR SE AUTO-COMPLETOU
-    info = escrow.escrows(escrowId);
-    if (info.state == IEscrow.EscrowState.COMPLETE) {
-        console.log("ESCROW AUTO-COMPLETOU! (Consenso total atingido)");
+        console.log("Ana gastou:", (anaBalanceBefore - address(depositor).balance) / 1 ether, "ETH");
+        //console.log("Garantia depositada:", escrow.escrowGuarantees(escrowId, address(0), uint256(IEscrow.TokenType.ETH), 0) / 1 ether, "ETH");
+
+        info = escrow.escrows(escrowId);
+        console.log("Garantia foi aceita:", info.isGuaranteeProvided);
+        console.log("");
+
+        // ETAPA 3: ANA INICIA O ESCROW
+        console.log("ETAPA 3: Ana inicia o escrow (negocio comecou oficialmente!)");
+
+        escrow.startEscrow(escrowId);
+
+        info = escrow.escrows(escrowId);
+        console.log("Estado atual:", uint256(info.state)); // 1 = ACTIVE
+        console.log("Iniciado em:", info.startTimestamp);
+        console.log("Bruno pensa: 'Otimo! Posso mandar o iPhone pelo correio'");
+        console.log("");
+
+        vm.stopPrank(); // Para o prank da Ana
+
+        // ETAPA 4: ANA PAGA AS 3 PARCELAS
+        console.log("ETAPA 4: Ana paga as 3 parcelas mensais");
+
+        uint256 installmentAmount = 3000 ether / 3; // R$ 1.000 por parcela
+
+        vm.startPrank(depositor); // Ana volta a fazer transacoes
+
+        // PARCELA 1 - No prazo
+        console.log("Parcela 1/3: R$ 1.000 (no prazo)");
+        uint256 anaBalanceBeforeP1 = address(depositor).balance;
+        escrow.payInstallmentETH{value: installmentAmount}(escrowId);
+        console.log("Ana pagou:", (anaBalanceBeforeP1 - address(depositor).balance) / 1 ether, "ETH");
+        console.log("Saldo do escrow:", escrow.getEscrowBalance(escrowId, address(0)) / 1 ether, "ETH");
+
+        // PARCELA 2 - No prazo (30 dias depois)
+        vm.warp(block.timestamp + 30 days);
+        console.log("Parcela 2/3: R$ 1.000 (no prazo - 30 dias depois)");
+        uint256 anaBalanceBeforeP2 = address(depositor).balance;
+        escrow.payInstallmentETH{value: installmentAmount}(escrowId);
+        console.log("Ana pagou:", (anaBalanceBeforeP2 - address(depositor).balance) / 1 ether, "ETH");
+        console.log("Saldo do escrow:", escrow.getEscrowBalance(escrowId, address(0)) / 1 ether, "ETH");
+
+        // PARCELA 3 - Atrasada (vamos simular 5 dias de atraso)
+        vm.warp(block.timestamp + 35 days); // 30 + 5 dias = atrasou 5 dias
+        console.log("Parcela 3/3: ATRASADA por 5 dias (vai ter juros!)");
+
+        (uint256 amountDue, uint256 interest) = escrow.calculateInstallmentWithInterest(escrowId);
+        console.log("Valor original da parcela:", installmentAmount / 1 ether, "ETH");
+        console.log("Juros por atraso (5 dias x 1%):", interest / 1 ether, "ETH");
+        console.log("Total a pagar:", amountDue / 1 ether, "ETH");
+        console.log("Ana pensa: 'Eita, esqueci de pagar no prazo! Agora tem juros...'");
+
+        uint256 anaBalanceBeforeP3 = address(depositor).balance;
+        escrow.payInstallmentETH{value: amountDue}(escrowId);
+        console.log("Ana pagou (com juros):", (anaBalanceBeforeP3 - address(depositor).balance) / 1 ether, "ETH");
+        console.log("Saldo FINAL do escrow:", escrow.getEscrowBalance(escrowId, address(0)) / 1 ether, "ETH");
+
+        info = escrow.escrows(escrowId);
+        console.log("Parcelas pagas:", info.installmentsPaid, "/", info.totalInstallments);
+        console.log("");
+
+        vm.stopPrank(); // Para o prank da Ana
+
+        // ETAPA 5: TODOS APROVAM (iPhone chegou perfeito!)
+        console.log("ETAPA 5: Todos aprovam - iPhone chegou perfeito!");
+        console.log("Ana: 'iPhone chegou novo, sem defeitos!'");
+        console.log("Bruno: 'Recebi todos os pagamentos, cliente satisfeita!'");
+        console.log("TechEscrow: 'Transacao ocorreu sem problemas!'");
+
+        // Ana aprova
+        vm.prank(depositor);
+        escrow.setReleaseApproval(escrowId, true);
+        console.log("Ana aprovou o recebimento");
+
+        // Bruno aprova
+        vm.prank(beneficiary);
+        escrow.setReleaseApproval(escrowId, true);
+        console.log("Bruno aprovou a entrega");
+
+        // TechEscrow aprova
+        vm.prank(escrowOwners[0]);
+        escrow.setReleaseApproval(escrowId, true);
+        console.log("TechEscrow aprovou a transacao");
+
+        // VERIFICAR SE AUTO-COMPLETOU
+        info = escrow.escrows(escrowId);
+        if (info.state == IEscrow.EscrowState.COMPLETE) {
+            console.log("ESCROW AUTO-COMPLETOU! (Consenso total atingido)");
+        }
+        console.log("");
+
+        // ETAPA 6: BRUNO SACA O DINHEIRO
+        console.log("ETAPA 6: Bruno saca seus R$ 3.000 (menos 2% de taxa)");
+
+        uint256 escrowBalance = escrow.getEscrowBalance(escrowId, address(0));
+        uint256 expectedFee = (escrowBalance * PLATFORM_FEE) / 10000; // 2%
+        uint256 expectedNetForBruno = escrowBalance - expectedFee;
+
+        console.log("Saldo total do escrow:", escrowBalance / 1 ether, "ETH");
+        console.log("Taxa da plataforma (2%):", expectedFee / 1 ether, "ETH");
+        console.log("Bruno vai receber:", expectedNetForBruno / 1 ether, "ETH");
+
+        uint256 brunoBalanceBefore = address(beneficiary).balance;
+        uint256 platformFeesBefore = escrow.pendingFees(owner);
+
+        vm.prank(beneficiary);
+        escrow.withdrawFunds(escrowId);
+
+        uint256 brunoReceived = address(beneficiary).balance - brunoBalanceBefore;
+        uint256 platformFeesAfter = escrow.pendingFees(owner);
+
+        console.log("Bruno recebeu:", brunoReceived / 1 ether, "ETH");
+        console.log("Taxa pendente para plataforma:", (platformFeesAfter - platformFeesBefore) / 1 ether, "ETH");
+        console.log("Bruno pensa: 'Perfeito! Recebi R$ 2.940 limpos'");
+
+        // Verificar que estado mudou para COMPLETE
+        info = escrow.escrows(escrowId);
+        assertEq(uint256(info.state), uint256(IEscrow.EscrowState.COMPLETE), "Escrow deve estar COMPLETE apos withdraw");
+        console.log("Estado final:", uint256(info.state)); // 3 = COMPLETE
+        console.log("");
+
+        // ETAPA 7: ANA RECUPERA A GARANTIA
+        console.log("ETAPA 7: Ana recupera sua garantia de R$ 500");
+        console.log("Ana pensa: 'Agora posso pegar minha garantia de volta!'");
+
+        uint256 anaBalanceBeforeGuarantee = address(depositor).balance;
+
+        vm.prank(depositor);
+        escrow.returnGuarantee(escrowId, IEscrow.TokenType.ETH, address(0), 0);
+
+        uint256 guaranteeReturned = address(depositor).balance - anaBalanceBeforeGuarantee;
+
+        console.log("Ana recuperou:", guaranteeReturned / 1 ether, "ETH de garantia");
+        console.log("Transacao finalizada com sucesso!");
+        console.log("");
+
+        // RESUMO FINAL
+        console.log("RESUMO FINAL DA TRANSACAO:");
+        console.log("Bruno recebeu:", brunoReceived / 1 ether, "ETH (R$ 2.940)");
+        console.log("Ana recuperou:", guaranteeReturned / 1 ether, "ETH de garantia");
+        console.log("Plataforma recebeu:", (platformFeesAfter - platformFeesBefore) / 1 ether, "ETH de taxa");
+        console.log("Todos sairam satisfeitos!");
+
+        // VALIDACOES FINAIS
+        assertEq(brunoReceived, expectedNetForBruno, "Bruno deve receber valor correto");
+        assertEq(guaranteeReturned, guaranteeAmount, "Ana deve recuperar garantia completa");
+        assertEq(escrow.getEscrowBalance(escrowId, address(0)), 0, "Saldo do escrow deve ser zero");
     }
-    console.log("");
 
-    // ETAPA 6: BRUNO SACA O DINHEIRO
-    console.log("ETAPA 6: Bruno saca seus R$ 3.000 (menos 2% de taxa)");
-    
-    uint256 escrowBalance = escrow.getEscrowBalance(escrowId, address(0));
-    uint256 expectedFee = (escrowBalance * PLATFORM_FEE) / 10000; // 2%
-    uint256 expectedNetForBruno = escrowBalance - expectedFee;
-    
-    console.log("Saldo total do escrow:", escrowBalance / 1 ether, "ETH");
-    console.log("Taxa da plataforma (2%):", expectedFee / 1 ether, "ETH");
-    console.log("Bruno vai receber:", expectedNetForBruno / 1 ether, "ETH");
-    
-    uint256 brunoBalanceBefore = address(beneficiary).balance;
-    uint256 platformFeesBefore = escrow.pendingFees(owner);
-    
-    vm.prank(beneficiary);
-    escrow.withdrawFunds(escrowId);
-    
-    uint256 brunoReceived = address(beneficiary).balance - brunoBalanceBefore;
-    uint256 platformFeesAfter = escrow.pendingFees(owner);
-    
-    console.log("Bruno recebeu:", brunoReceived / 1 ether, "ETH");
-    console.log("Taxa pendente para plataforma:", (platformFeesAfter - platformFeesBefore) / 1 ether, "ETH");
-    console.log("Bruno pensa: 'Perfeito! Recebi R$ 2.940 limpos'");
-    
-    // Verificar que estado mudou para COMPLETE
-    info = escrow.escrows(escrowId);
-    assertEq(uint256(info.state), uint256(IEscrow.EscrowState.COMPLETE), "Escrow deve estar COMPLETE apos withdraw");
-    console.log("Estado final:", uint256(info.state)); // 3 = COMPLETE
-    console.log("");
+    /**
+     * CENARIO: FREELANCE COM DISPUTA
+     *
+     * ANALOGIA: Carlos contrata Diana para criar um site por R$ 5.000
+     * - Pagamento: 5x R$ 1.000 (quinzenal)
+     * - Garantia: R$ 1.000 (protecao)
+     * - PROBLEMA: Diana entrega site com bugs, Carlos reclama
+     *
+     * FLUXO ESPERADO:
+     * 1. Escrow criado e iniciado
+     * 2. Carlos paga 3 parcelas (R$ 3.000)
+     * 3. Diana entrega site com problemas
+     * 4. Carlos abre disputa
+     * 5. Arbitro decide: 60% para Carlos, 40% para Diana
+     * 6. Garantia volta para Carlos
+     */
+    function test_FreelanceWithDispute_RealisticScenario() public {
+        console.log("INICIANDO: Cenario Freelance - Site R$ 5.000 COM DISPUTA");
+        console.log("Carlos (Cliente):", depositor);
+        console.log("Diana (Freelancer):", beneficiary);
+        console.log("FreelanceEscrow (Plataforma):", escrowOwners[0]);
+        console.log("");
 
-    // ETAPA 7: ANA RECUPERA A GARANTIA
-    console.log("ETAPA 7: Ana recupera sua garantia de R$ 500");
-    console.log("Ana pensa: 'Agora posso pegar minha garantia de volta!'");
-    
-    uint256 anaBalanceBeforeGuarantee = address(depositor).balance;
-    
-    vm.prank(depositor);
-    escrow.returnGuarantee(escrowId, IEscrow.TokenType.ETH, address(0), 0);
-    
-    uint256 guaranteeReturned = address(depositor).balance - anaBalanceBeforeGuarantee;
-    
-    console.log("Ana recuperou:", guaranteeReturned / 1 ether, "ETH de garantia");
-    console.log("Transacao finalizada com sucesso!");
-    console.log("");
+        // CRIACAO DO ESCROW
+        vm.prank(escrowOwners[0]);
+        IEscrow.EscrowParams memory params = IEscrow.EscrowParams({
+            depositor: depositor, // Carlos (cliente)
+            beneficiary: beneficiary, // Diana (freelancer)
+            requiresGuarantee: true, // Garantia obrigatoria
+            totalAmount: 5000 ether, // R$ 5.000 pelo site
+            totalInstallments: 5, // 5 parcelas
+            paymentIntervalSeconds: 15 days, // Parcelas quinzenais
+            dailyInterestFeeBP: 200, // 2% ao dia (mais rigoroso)
+            allowBeneficiaryWithdrawPartial: false,
+            paymentToken: address(0),
+            interestModel: IEscrow.InterestModel.SIMPLE,
+            useCustomSchedule: false
+        });
 
-    // RESUMO FINAL
-    console.log("RESUMO FINAL DA TRANSACAO:");
-    console.log("Bruno recebeu:", brunoReceived / 1 ether, "ETH (R$ 2.940)");
-    console.log("Ana recuperou:", guaranteeReturned / 1 ether, "ETH de garantia");
-    console.log("Plataforma recebeu:", (platformFeesAfter - platformFeesBefore) / 1 ether, "ETH de taxa");
-    console.log("Todos sairam satisfeitos!");
-    
-    // VALIDACOES FINAIS
-    assertEq(brunoReceived, expectedNetForBruno, "Bruno deve receber valor correto");
-    assertEq(guaranteeReturned, guaranteeAmount, "Ana deve recuperar garantia completa");
-    assertEq(escrow.getEscrowBalance(escrowId, address(0)), 0, "Saldo do escrow deve ser zero");
+        uint256 escrowId = escrow.createEscrow(params, new IEscrow.InstallmentDetail[](0));
+        console.log("Escrow criado para desenvolvimento do site");
+        console.log("");
+
+        // GARANTIA E INICIO
+        vm.startPrank(depositor);
+        uint256 guaranteeAmount = 1000 ether; // R$ 1.000 de garantia
+        escrow.provideGuarantee{value: guaranteeAmount}(escrowId, IEscrow.TokenType.ETH, address(0), 0, guaranteeAmount);
+        escrow.startEscrow(escrowId);
+        console.log("Carlos depositou R$ 1.000 de garantia");
+        console.log("Projeto iniciado - Diana pode comecar o desenvolvimento");
+        console.log("");
+
+        // PAGAMENTOS PARCIAIS (3 de 5 parcelas)
+        uint256 installmentAmount = 1000 ether; // R$ 1.000 por parcela
+
+        console.log("Carlos paga as primeiras 3 parcelas...");
+
+        // Parcela 1
+        escrow.payInstallmentETH{value: installmentAmount}(escrowId);
+        console.log("Parcela 1/5 paga: R$ 1.000");
+
+        // Parcela 2 (15 dias depois)
+        vm.warp(block.timestamp + 15 days);
+        escrow.payInstallmentETH{value: installmentAmount}(escrowId);
+        console.log("Parcela 2/5 paga: R$ 1.000");
+
+        // Parcela 3 (mais 15 dias)
+        vm.warp(block.timestamp + 15 days);
+        escrow.payInstallmentETH{value: installmentAmount}(escrowId);
+        console.log("Parcela 3/5 paga: R$ 1.000");
+
+        console.log("Total pago ate agora:", escrow.getEscrowBalance(escrowId, address(0)) / 1 ether, "ETH");
+        console.log("Diana pensa: 'Ja recebi R$ 3.000, vou entregar a primeira versao'");
+        console.log("");
+
+        // PROBLEMA: DIANA ENTREGA SITE COM BUGS
+        console.log("PROBLEMA: Diana entrega site mas esta cheio de bugs!");
+        console.log("Carlos: 'Esse site nao funciona! Tem bugs em toda parte!'");
+        console.log("Diana: 'Sao so alguns bugs menores, vou corrigir'");
+        console.log("Carlos: 'Nao, isso esta muito ruim. Vou abrir uma disputa!'");
+        console.log("");
+
+        // CARLOS ABRE DISPUTA
+        console.log("Carlos abre disputa no escrow");
+        escrow.openDispute(escrowId);
+
+        IEscrow.EscrowInfo memory info = escrow.escrows(escrowId);
+        console.log("Estado mudou para DISPUTED:", uint256(info.state)); // 2 = DISPUTED
+        console.log("Disputa aberta por:", info.disputedBy);
+        console.log("");
+
+        vm.stopPrank();
+
+        // ARBITRO ANALISA E TODOS APROVAM A RESOLUCAO
+        console.log("Arbitro analisa o caso...");
+        console.log("Evidencias:");
+        console.log("- Site foi entregue (Diana trabalhou)");
+        console.log("- Mas tem muitos bugs (Carlos tem razao)");
+        console.log("- Diana cooperou durante o processo");
+        console.log("Decisao: 60% para Carlos (reembolso), 40% para Diana (trabalho parcial)");
+        console.log("");
+
+        // Todos aprovam a resolucao proposta
+        vm.prank(depositor);
+        escrow.setReleaseApproval(escrowId, true);
+        console.log("Carlos aprovou a resolucao");
+
+        vm.prank(beneficiary);
+        escrow.setReleaseApproval(escrowId, true);
+        console.log("Diana aprovou a resolucao");
+
+        vm.prank(escrowOwners[0]);
+        escrow.setReleaseApproval(escrowId, true);
+        console.log("Arbitro aprovou a resolucao");
+        console.log("");
+
+        // RESOLUCAO DA DISPUTA
+        uint256 totalBalance = escrow.getEscrowBalance(escrowId, address(0));
+        uint256 platformFee = (totalBalance * PLATFORM_FEE) / 10000;
+        uint256 availableForDistribution = totalBalance - platformFee;
+
+        uint256 amountToCarlos = (availableForDistribution * 60) / 100; // 60%
+        uint256 amountToDiana = availableForDistribution - amountToCarlos; // 40%
+
+        console.log("DISTRIBUICAO DOS FUNDOS:");
+        console.log("Total no escrow:", totalBalance / 1 ether, "ETH");
+        console.log("Taxa da plataforma:", platformFee / 1 ether, "ETH");
+        console.log("Disponivel para distribuir:", availableForDistribution / 1 ether, "ETH");
+        console.log("Carlos recebera (60%):", amountToCarlos / 1 ether, "ETH");
+        console.log("Diana recebera (40%):", amountToDiana / 1 ether, "ETH");
+        console.log("");
+
+        uint256 carlosBalanceBefore = address(depositor).balance;
+        uint256 dianaBalanceBefore = address(beneficiary).balance;
+        uint256 platformFeesBefore = escrow.pendingFees(owner);
+
+        vm.prank(escrowOwners[0]);
+        escrow.resolveDispute(
+            escrowId,
+            amountToCarlos,
+            amountToDiana,
+            "Carlos recebe 60% - site com muitos bugs. Diana recebe 40% - trabalho parcial realizado."
+        );
+
+        uint256 carlosReceived = address(depositor).balance - carlosBalanceBefore;
+        uint256 dianaReceived = address(beneficiary).balance - dianaBalanceBefore;
+        uint256 platformFeesReceived = escrow.pendingFees(owner) - platformFeesBefore;
+
+        console.log("RESULTADO DA DISPUTA:");
+        console.log("Carlos recebeu:", carlosReceived / 1 ether, "ETH (reembolso parcial)");
+        console.log("Diana recebeu:", dianaReceived / 1 ether, "ETH (pagamento parcial)");
+        console.log("Plataforma recebeu:", platformFeesReceived / 1 ether, "ETH (taxa)");
+        console.log("");
+
+        // CARLOS RECUPERA A GARANTIA
+        console.log("Carlos recupera sua garantia...");
+
+        info = escrow.escrows(escrowId);
+        assertEq(uint256(info.state), uint256(IEscrow.EscrowState.COMPLETE), "Escrow deve estar COMPLETE");
+
+        uint256 carlosBalanceBeforeGuarantee = address(depositor).balance;
+
+        vm.prank(depositor);
+        escrow.returnGuarantee(escrowId, IEscrow.TokenType.ETH, address(0), 0);
+
+        uint256 guaranteeReturned = address(depositor).balance - carlosBalanceBeforeGuarantee;
+
+        console.log("Carlos recuperou garantia:", guaranteeReturned / 1 ether, "ETH");
+        console.log("");
+
+        // RESUMO FINAL DETALHADO
+        console.log("RESUMO FINAL - DISPUTA RESOLVIDA:");
+        console.log("Carlos pagou:", 3000 ether / 1 ether, "ETH");
+        console.log("Carlos recuperou:", (carlosReceived + guaranteeReturned) / 1 ether, "ETH");
+        console.log("Perda liquida de Carlos:", (3000 ether - carlosReceived - guaranteeReturned) / 1 ether, "ETH");
+        console.log("Diana trabalhou e recebeu:", dianaReceived / 1 ether, "ETH");
+        console.log("Plataforma mediou e recebeu:", platformFeesReceived / 1 ether, "ETH");
+        console.log("Justica: Ambas as partes sairam com algo justo");
+        console.log("Disputa resolvida de forma equilibrada!");
+
+        // VALIDACOES
+        assertEq(carlosReceived, amountToCarlos, "Carlos deve receber 60%");
+        assertEq(dianaReceived, amountToDiana, "Diana deve receber 40%");
+        assertEq(guaranteeReturned, guaranteeAmount, "Garantia deve ser devolvida integralmente");
+    }
+
+    /**
+     * CENARIO: ACORDO AMIGAVEL (SETTLEMENT)
+     *
+     * ANALOGIA: Eduardo compra equipamento de Fernanda por R$ 2.000
+     * - Pagamento: 4x R$ 500 (semanal)
+     * - Eduardo paga 2 parcelas (R$ 1.000)
+     * - Equipamento chega mas com pequeno defeito
+     * - Ao inves de disputa, fazem acordo: 50% desconto para Eduardo
+     *
+     * FLUXO:
+     * 1. Escrow normal ate 2 pagamentos
+     * 2. Problema surge, mas resolvem amigavelmente
+     * 3. Eduardo propoe settlement: R$ 700 para ele, R$ 300 para Fernanda
+     * 4. Fernanda aceita o acordo
+     * 5. Fundos distribuidos automaticamente
+     */
+    function test_AmicableSettlement_RealisticScenario() public {
+        console.log("INICIANDO: Cenario Acordo Amigavel - Equipamento R$ 2.000");
+        console.log("Eduardo (Comprador):", depositor);
+        console.log("Fernanda (Vendedora):", beneficiary);
+        console.log("EquipEscrow (Plataforma):", escrowOwners[0]);
+        console.log("");
+
+        // CRIACAO E INICIO
+        vm.prank(escrowOwners[0]);
+        IEscrow.EscrowParams memory params = IEscrow.EscrowParams({
+            depositor: depositor,
+            beneficiary: beneficiary,
+            requiresGuarantee: false, // Sem garantia neste caso
+            totalAmount: 2000 ether, // R$ 2.000
+            totalInstallments: 4, // 4 parcelas semanais
+            paymentIntervalSeconds: 7 days, // Semanal
+            dailyInterestFeeBP: 150, // 1.5% ao dia
+            allowBeneficiaryWithdrawPartial: false,
+            paymentToken: address(0),
+            interestModel: IEscrow.InterestModel.SIMPLE,
+            useCustomSchedule: false
+        });
+
+        uint256 escrowId = escrow.createEscrow(params, new IEscrow.InstallmentDetail[](0));
+
+        vm.prank(escrowOwners[0]);
+        IEscrow.EscrowParams memory params2 = IEscrow.EscrowParams({
+            depositor: depositor,
+            beneficiary: beneficiary,
+            requiresGuarantee: false, // Sem garantia neste caso
+            totalAmount: 2000 ether, // R$ 2.000
+            totalInstallments: 4, // 4 parcelas semanais
+            paymentIntervalSeconds: 7 days, // Semanal
+            dailyInterestFeeBP: 150, // 1.5% ao dia
+            allowBeneficiaryWithdrawPartial: false,
+            paymentToken: address(0),
+            interestModel: IEscrow.InterestModel.SIMPLE,
+            useCustomSchedule: false
+        });
+
+        uint256 escrowId2 = escrow.createEscrow(params2, new IEscrow.InstallmentDetail[](0));
+        assertEq(escrowId2, 2, "Escrow ID deve ser 2");
+
+        vm.startPrank(depositor);
+        escrow.startEscrow(escrowId); // Sem garantia, pode iniciar direto
+        console.log("Compra de equipamento iniciada (sem garantia)");
+        console.log("");
+
+        // PAGAMENTOS PARCIAIS
+        uint256 installmentAmount = 500 ether; // R$ 500 por parcela
+
+        console.log("Eduardo paga as primeiras 2 parcelas...");
+
+        // Parcela 1
+        escrow.payInstallmentETH{value: installmentAmount}(escrowId);
+        console.log("Semana 1: R$ 500 pagos");
+
+        // Parcela 2
+        vm.warp(block.timestamp + 7 days);
+        escrow.payInstallmentETH{value: installmentAmount}(escrowId);
+        console.log("Semana 2: R$ 500 pagos");
+
+        console.log("Total pago:", escrow.getEscrowBalance(escrowId, address(0)) / 1 ether, "ETH");
+        console.log("");
+
+        // PROBLEMA SURGE
+        console.log("Fernanda envia o equipamento...");
+        console.log("Eduardo recebe e testa:");
+        console.log("Eduardo: 'O equipamento funciona, mas tem um risco pequeno na carcaca'");
+        console.log("Eduardo: 'Nao e grave, mas nao estava na descricao'");
+        console.log("Eduardo liga para Fernanda...");
+        console.log("Fernanda: 'Desculpa! Nem tinha visto esse risco. Que tal um desconto?'");
+        console.log("Eduardo: 'Legal! Vamos fazer um acordo justo para os dois'");
+        console.log("");
+
+        // EDUARDO PROPOE SETTLEMENT
+        console.log("Eduardo propoe um acordo amigavel...");
+
+        uint256 currentBalance = escrow.getEscrowBalance(escrowId, address(0)); // 1000 ETH
+        uint256 platformFee = (currentBalance * PLATFORM_FEE) / 10000; // 2%
+        uint256 availableForDistribution = currentBalance - platformFee; // 980 ETH
+
+        // Eduardo propoe ficar com 70% (devido ao defeito), Fernanda 30%
+        uint256 proposedToEduardo = (availableForDistribution * 70) / 100; // 686 ETH
+        uint256 proposedToFernanda = availableForDistribution - proposedToEduardo; // 294 ETH
+
+        console.log("Eduardo propoe divisao:");
+        console.log("Total disponivel:", availableForDistribution / 1 ether, "ETH");
+        console.log("Eduardo ficaria com (70%):", proposedToEduardo / 1 ether, "ETH");
+        console.log("Fernanda ficaria com (30%):", proposedToFernanda / 1 ether, "ETH");
+        console.log("Eduardo: 'Assim eu pago so 300 pelo equipamento com defeito'");
+
+        escrow.proposeSettlement(escrowId, proposedToEduardo, proposedToFernanda);
+
+        IEscrow.EscrowInfo memory info = escrow.escrows(escrowId);
+        console.log("Proposta de acordo enviada");
+        console.log("Fernanda tem 30 dias para aceitar");
+        console.log("Prazo ate:", info.settlementDeadline);
+        console.log("");
+
+        vm.stopPrank();
+
+        // FERNANDA PONDERA E ACEITA
+        console.log("Fernanda pondera a proposta...");
+        console.log("Fernanda: 'R$ 294 por um equipamento com defeito e justo'");
+        console.log("Fernanda: 'Melhor que uma disputa demorada'");
+        console.log("Fernanda: 'E mantenho a reputacao boa na plataforma'");
+        console.log("");
+
+        uint256 eduardoBalanceBefore = address(depositor).balance;
+        uint256 fernandaBalanceBefore = address(beneficiary).balance;
+        uint256 platformFeesBefore = escrow.pendingFees(owner);
+
+        vm.prank(beneficiary);
+        escrow.acceptSettlement(escrowId);
+
+        uint256 eduardoReceived = address(depositor).balance - eduardoBalanceBefore;
+        uint256 fernandaReceived = address(beneficiary).balance - fernandaBalanceBefore;
+        uint256 platformFeesReceived = escrow.pendingFees(owner) - platformFeesBefore;
+
+        console.log("ACORDO ACEITO E EXECUTADO AUTOMATICAMENTE!");
+        console.log("");
+
+        // RESULTADO DO SETTLEMENT
+        console.log("RESULTADO DO ACORDO:");
+        console.log("Eduardo recebeu:", eduardoReceived / 1 ether, "ETH (reembolso por defeito)");
+        console.log("Fernanda recebeu:", fernandaReceived / 1 ether, "ETH (pagamento pelo equipamento)");
+        console.log("Plataforma recebeu:", platformFeesReceived / 1 ether, "ETH (taxa de servico)");
+        console.log("");
+
+        // ANALISE FINANCEIRA
+        console.log("ANALISE FINANCEIRA FINAL:");
+        console.log("Eduardo pagou:", 1000 ether / 1 ether, "ETH");
+        console.log("Eduardo recebeu de volta:", eduardoReceived / 1 ether, "ETH");
+        console.log("Custo real do equipamento:", (1000 ether - eduardoReceived) / 1 ether, "ETH");
+        console.log("Fernanda vendeu por:", fernandaReceived / 1 ether, "ETH (com desconto por defeito)");
+        console.log("Ambos evitaram disputa longa e custosa");
+        console.log("Resolucao rapida e amigavel!");
+        console.log("");
+
+        // VERIFICACAO DO ESTADO FINAL
+        info = escrow.escrows(escrowId);
+        assertEq(uint256(info.state), uint256(IEscrow.EscrowState.COMPLETE), "Escrow deve estar COMPLETE");
+        assertFalse(info.hasSettlementProposal, "Proposta deve ser limpa apos execucao");
+        assertEq(escrow.getEscrowBalance(escrowId, address(0)), 0, "Saldo deve ser zero");
+
+        console.log("Estado do escrow: COMPLETE");
+        console.log("Acordo executado com sucesso!");
+        console.log("Moral: Nem sempre e preciso disputar - acordos podem ser melhores!");
+
+        // VALIDACOES FINAIS
+        assertEq(eduardoReceived, proposedToEduardo, "Eduardo deve receber valor acordado");
+        assertEq(fernandaReceived, proposedToFernanda, "Fernanda deve receber valor acordado");
+    }
 }
-
-/**
- * CENARIO: FREELANCE COM DISPUTA
- * 
- * ANALOGIA: Carlos contrata Diana para criar um site por R$ 5.000
- * - Pagamento: 5x R$ 1.000 (quinzenal)
- * - Garantia: R$ 1.000 (protecao)
- * - PROBLEMA: Diana entrega site com bugs, Carlos reclama
- * 
- * FLUXO ESPERADO:
- * 1. Escrow criado e iniciado
- * 2. Carlos paga 3 parcelas (R$ 3.000) 
- * 3. Diana entrega site com problemas
- * 4. Carlos abre disputa
- * 5. Arbitro decide: 60% para Carlos, 40% para Diana
- * 6. Garantia volta para Carlos
- */
-function test_FreelanceWithDispute_RealisticScenario() public {
-    console.log("INICIANDO: Cenario Freelance - Site R$ 5.000 COM DISPUTA");
-    console.log("Carlos (Cliente):", depositor);
-    console.log("Diana (Freelancer):", beneficiary);
-    console.log("FreelanceEscrow (Plataforma):", escrowOwners[0]);
-    console.log("");
-
-    // CRIACAO DO ESCROW
-    vm.prank(escrowOwners[0]);
-    IEscrow.EscrowParams memory params = IEscrow.EscrowParams({
-        depositor: depositor,           // Carlos (cliente)
-        beneficiary: beneficiary,       // Diana (freelancer)
-        requiresGuarantee: true,        // Garantia obrigatoria
-        totalAmount: 5000 ether,        // R$ 5.000 pelo site
-        totalInstallments: 5,           // 5 parcelas
-        paymentIntervalSeconds: 15 days, // Parcelas quinzenais
-        dailyInterestFeeBP: 200,        // 2% ao dia (mais rigoroso)
-        allowBeneficiaryWithdrawPartial: false,
-        paymentToken: address(0),
-        interestModel: IEscrow.InterestModel.SIMPLE,
-        useCustomSchedule: false
-    });
-
-    uint256 escrowId = escrow.createEscrow(params, new IEscrow.InstallmentDetail[](0));
-    console.log("Escrow criado para desenvolvimento do site");
-    console.log("");
-
-    // GARANTIA E INICIO
-    vm.startPrank(depositor);
-    uint256 guaranteeAmount = 1000 ether; // R$ 1.000 de garantia
-    escrow.provideGuarantee{value: guaranteeAmount}(escrowId, IEscrow.TokenType.ETH, address(0), 0, guaranteeAmount);
-    escrow.startEscrow(escrowId);
-    console.log("Carlos depositou R$ 1.000 de garantia");
-    console.log("Projeto iniciado - Diana pode comecar o desenvolvimento");
-    console.log("");
-
-    // PAGAMENTOS PARCIAIS (3 de 5 parcelas)
-    uint256 installmentAmount = 1000 ether; // R$ 1.000 por parcela
-    
-    console.log("Carlos paga as primeiras 3 parcelas...");
-    
-    // Parcela 1
-    escrow.payInstallmentETH{value: installmentAmount}(escrowId);
-    console.log("Parcela 1/5 paga: R$ 1.000");
-    
-    // Parcela 2 (15 dias depois)
-    vm.warp(block.timestamp + 15 days);
-    escrow.payInstallmentETH{value: installmentAmount}(escrowId);
-    console.log("Parcela 2/5 paga: R$ 1.000");
-    
-    // Parcela 3 (mais 15 dias)
-    vm.warp(block.timestamp + 15 days);
-    escrow.payInstallmentETH{value: installmentAmount}(escrowId);
-    console.log("Parcela 3/5 paga: R$ 1.000");
-    
-    console.log("Total pago ate agora:", escrow.getEscrowBalance(escrowId, address(0)) / 1 ether, "ETH");
-    console.log("Diana pensa: 'Ja recebi R$ 3.000, vou entregar a primeira versao'");
-    console.log("");
-
-    // PROBLEMA: DIANA ENTREGA SITE COM BUGS
-    console.log("PROBLEMA: Diana entrega site mas esta cheio de bugs!");
-    console.log("Carlos: 'Esse site nao funciona! Tem bugs em toda parte!'");
-    console.log("Diana: 'Sao so alguns bugs menores, vou corrigir'");
-    console.log("Carlos: 'Nao, isso esta muito ruim. Vou abrir uma disputa!'");
-    console.log("");
-
-    // CARLOS ABRE DISPUTA
-    console.log("Carlos abre disputa no escrow");
-    escrow.openDispute(escrowId);
-    
-    IEscrow.EscrowInfo memory info = escrow.escrows(escrowId);
-    console.log("Estado mudou para DISPUTED:", uint256(info.state)); // 2 = DISPUTED
-    console.log("Disputa aberta por:", info.disputedBy);
-    console.log("");
-
-    vm.stopPrank();
-
-    // ARBITRO ANALISA E TODOS APROVAM A RESOLUCAO
-    console.log("Arbitro analisa o caso...");
-    console.log("Evidencias:");
-    console.log("- Site foi entregue (Diana trabalhou)");
-    console.log("- Mas tem muitos bugs (Carlos tem razao)");
-    console.log("- Diana cooperou durante o processo");
-    console.log("Decisao: 60% para Carlos (reembolso), 40% para Diana (trabalho parcial)");
-    console.log("");
-
-    // Todos aprovam a resolucao proposta
-    vm.prank(depositor);
-    escrow.setReleaseApproval(escrowId, true);
-    console.log("Carlos aprovou a resolucao");
-    
-    vm.prank(beneficiary);
-    escrow.setReleaseApproval(escrowId, true);
-    console.log("Diana aprovou a resolucao");
-    
-    vm.prank(escrowOwners[0]);
-    escrow.setReleaseApproval(escrowId, true);
-    console.log("Arbitro aprovou a resolucao");
-    console.log("");
-
-    // RESOLUCAO DA DISPUTA
-    uint256 totalBalance = escrow.getEscrowBalance(escrowId, address(0));
-    uint256 platformFee = (totalBalance * PLATFORM_FEE) / 10000;
-    uint256 availableForDistribution = totalBalance - platformFee;
-    
-    uint256 amountToCarlos = (availableForDistribution * 60) / 100; // 60%
-    uint256 amountToDiana = availableForDistribution - amountToCarlos; // 40%
-    
-    console.log("DISTRIBUICAO DOS FUNDOS:");
-    console.log("Total no escrow:", totalBalance / 1 ether, "ETH");
-    console.log("Taxa da plataforma:", platformFee / 1 ether, "ETH");
-    console.log("Disponivel para distribuir:", availableForDistribution / 1 ether, "ETH");
-    console.log("Carlos recebera (60%):", amountToCarlos / 1 ether, "ETH");
-    console.log("Diana recebera (40%):", amountToDiana / 1 ether, "ETH");
-    console.log("");
-
-    uint256 carlosBalanceBefore = address(depositor).balance;
-    uint256 dianaBalanceBefore = address(beneficiary).balance;
-    uint256 platformFeesBefore = escrow.pendingFees(owner);
-
-    vm.prank(escrowOwners[0]);
-    escrow.resolveDispute(escrowId, amountToCarlos, amountToDiana, "Carlos recebe 60% - site com muitos bugs. Diana recebe 40% - trabalho parcial realizado.");
-
-    uint256 carlosReceived = address(depositor).balance - carlosBalanceBefore;
-    uint256 dianaReceived = address(beneficiary).balance - dianaBalanceBefore;
-    uint256 platformFeesReceived = escrow.pendingFees(owner) - platformFeesBefore;
-
-    console.log("RESULTADO DA DISPUTA:");
-    console.log("Carlos recebeu:", carlosReceived / 1 ether, "ETH (reembolso parcial)");
-    console.log("Diana recebeu:", dianaReceived / 1 ether, "ETH (pagamento parcial)");
-    console.log("Plataforma recebeu:", platformFeesReceived / 1 ether, "ETH (taxa)");
-    console.log("");
-
-    // CARLOS RECUPERA A GARANTIA
-    console.log("Carlos recupera sua garantia...");
-    
-    info = escrow.escrows(escrowId);
-    assertEq(uint256(info.state), uint256(IEscrow.EscrowState.COMPLETE), "Escrow deve estar COMPLETE");
-    
-    uint256 carlosBalanceBeforeGuarantee = address(depositor).balance;
-    
-    vm.prank(depositor);
-    escrow.returnGuarantee(escrowId, IEscrow.TokenType.ETH, address(0), 0);
-    
-    uint256 guaranteeReturned = address(depositor).balance - carlosBalanceBeforeGuarantee;
-    
-    console.log("Carlos recuperou garantia:", guaranteeReturned / 1 ether, "ETH");
-    console.log("");
-
-    // RESUMO FINAL DETALHADO
-    console.log("RESUMO FINAL - DISPUTA RESOLVIDA:");
-    console.log("Carlos pagou:", 3000 ether / 1 ether, "ETH");
-    console.log("Carlos recuperou:", (carlosReceived + guaranteeReturned) / 1 ether, "ETH");
-    console.log("Perda liquida de Carlos:", (3000 ether - carlosReceived - guaranteeReturned) / 1 ether, "ETH");
-    console.log("Diana trabalhou e recebeu:", dianaReceived / 1 ether, "ETH");
-    console.log("Plataforma mediou e recebeu:", platformFeesReceived / 1 ether, "ETH");
-    console.log("Justica: Ambas as partes sairam com algo justo");
-    console.log("Disputa resolvida de forma equilibrada!");
-
-    // VALIDACOES
-    assertEq(carlosReceived, amountToCarlos, "Carlos deve receber 60%");
-    assertEq(dianaReceived, amountToDiana, "Diana deve receber 40%");
-    assertEq(guaranteeReturned, guaranteeAmount, "Garantia deve ser devolvida integralmente");
-}
-
-/**
- * CENARIO: ACORDO AMIGAVEL (SETTLEMENT)
- * 
- * ANALOGIA: Eduardo compra equipamento de Fernanda por R$ 2.000
- * - Pagamento: 4x R$ 500 (semanal)
- * - Eduardo paga 2 parcelas (R$ 1.000)
- * - Equipamento chega mas com pequeno defeito
- * - Ao inves de disputa, fazem acordo: 50% desconto para Eduardo
- * 
- * FLUXO:
- * 1. Escrow normal ate 2 pagamentos
- * 2. Problema surge, mas resolvem amigavelmente  
- * 3. Eduardo propoe settlement: R$ 700 para ele, R$ 300 para Fernanda
- * 4. Fernanda aceita o acordo
- * 5. Fundos distribuidos automaticamente
- */
-function test_AmicableSettlement_RealisticScenario() public {
-    console.log("INICIANDO: Cenario Acordo Amigavel - Equipamento R$ 2.000");
-    console.log("Eduardo (Comprador):", depositor);
-    console.log("Fernanda (Vendedora):", beneficiary);
-    console.log("EquipEscrow (Plataforma):", escrowOwners[0]);
-    console.log("");
-
-    // CRIACAO E INICIO
-    vm.prank(escrowOwners[0]);
-    IEscrow.EscrowParams memory params = IEscrow.EscrowParams({
-        depositor: depositor,
-        beneficiary: beneficiary,
-        requiresGuarantee: false,       // Sem garantia neste caso
-        totalAmount: 2000 ether,        // R$ 2.000
-        totalInstallments: 4,           // 4 parcelas semanais
-        paymentIntervalSeconds: 7 days, // Semanal
-        dailyInterestFeeBP: 150,        // 1.5% ao dia
-        allowBeneficiaryWithdrawPartial: false,
-        paymentToken: address(0),
-        interestModel: IEscrow.InterestModel.SIMPLE,
-        useCustomSchedule: false
-    });
-
-    uint256 escrowId = escrow.createEscrow(params, new IEscrow.InstallmentDetail[](0));
-
-    vm.prank(escrowOwners[0]);
-    IEscrow.EscrowParams memory params2 = IEscrow.EscrowParams({
-        depositor: depositor,
-        beneficiary: beneficiary,
-        requiresGuarantee: false,       // Sem garantia neste caso
-        totalAmount: 2000 ether,        // R$ 2.000
-        totalInstallments: 4,           // 4 parcelas semanais
-        paymentIntervalSeconds: 7 days, // Semanal
-        dailyInterestFeeBP: 150,        // 1.5% ao dia
-        allowBeneficiaryWithdrawPartial: false,
-        paymentToken: address(0),
-        interestModel: IEscrow.InterestModel.SIMPLE,
-        useCustomSchedule: false
-    });
-
-    uint256 escrowId2 = escrow.createEscrow(params2, new IEscrow.InstallmentDetail[](0));
-    assertEq(escrowId2, 2, "Escrow ID deve ser 2");
-    
-    vm.startPrank(depositor);
-    escrow.startEscrow(escrowId); // Sem garantia, pode iniciar direto
-    console.log("Compra de equipamento iniciada (sem garantia)");
-    console.log("");
-
-    // PAGAMENTOS PARCIAIS
-    uint256 installmentAmount = 500 ether; // R$ 500 por parcela
-    
-    console.log("Eduardo paga as primeiras 2 parcelas...");
-    
-    // Parcela 1
-    escrow.payInstallmentETH{value: installmentAmount}(escrowId);
-    console.log("Semana 1: R$ 500 pagos");
-    
-    // Parcela 2
-    vm.warp(block.timestamp + 7 days);
-    escrow.payInstallmentETH{value: installmentAmount}(escrowId);
-    console.log("Semana 2: R$ 500 pagos");
-    
-    console.log("Total pago:", escrow.getEscrowBalance(escrowId, address(0)) / 1 ether, "ETH");
-    console.log("");
-
-    // PROBLEMA SURGE
-    console.log("Fernanda envia o equipamento...");
-    console.log("Eduardo recebe e testa:");
-    console.log("Eduardo: 'O equipamento funciona, mas tem um risco pequeno na carcaca'");
-    console.log("Eduardo: 'Nao e grave, mas nao estava na descricao'");
-    console.log("Eduardo liga para Fernanda...");
-    console.log("Fernanda: 'Desculpa! Nem tinha visto esse risco. Que tal um desconto?'");
-    console.log("Eduardo: 'Legal! Vamos fazer um acordo justo para os dois'");
-    console.log("");
-
-    // EDUARDO PROPOE SETTLEMENT
-    console.log("Eduardo propoe um acordo amigavel...");
-    
-    uint256 currentBalance = escrow.getEscrowBalance(escrowId, address(0)); // 1000 ETH
-    uint256 platformFee = (currentBalance * PLATFORM_FEE) / 10000; // 2%
-    uint256 availableForDistribution = currentBalance - platformFee; // 980 ETH
-    
-    // Eduardo propoe ficar com 70% (devido ao defeito), Fernanda 30%
-    uint256 proposedToEduardo = (availableForDistribution * 70) / 100; // 686 ETH
-    uint256 proposedToFernanda = availableForDistribution - proposedToEduardo; // 294 ETH
-    
-    console.log("Eduardo propoe divisao:");
-    console.log("Total disponivel:", availableForDistribution / 1 ether, "ETH");
-    console.log("Eduardo ficaria com (70%):", proposedToEduardo / 1 ether, "ETH");
-    console.log("Fernanda ficaria com (30%):", proposedToFernanda / 1 ether, "ETH");
-    console.log("Eduardo: 'Assim eu pago so 300 pelo equipamento com defeito'");
-    
-    escrow.proposeSettlement(escrowId, proposedToEduardo, proposedToFernanda);
-    
-    IEscrow.EscrowInfo memory info = escrow.escrows(escrowId);
-    console.log("Proposta de acordo enviada");
-    console.log("Fernanda tem 30 dias para aceitar");
-    console.log("Prazo ate:", info.settlementDeadline);
-    console.log("");
-
-    vm.stopPrank();
-
-    // FERNANDA PONDERA E ACEITA
-    console.log("Fernanda pondera a proposta...");
-    console.log("Fernanda: 'R$ 294 por um equipamento com defeito e justo'");
-    console.log("Fernanda: 'Melhor que uma disputa demorada'");
-    console.log("Fernanda: 'E mantenho a reputacao boa na plataforma'");
-    console.log("");
-
-    uint256 eduardoBalanceBefore = address(depositor).balance;
-    uint256 fernandaBalanceBefore = address(beneficiary).balance;
-    uint256 platformFeesBefore = escrow.pendingFees(owner);
-
-    vm.prank(beneficiary);
-    escrow.acceptSettlement(escrowId);
-
-    uint256 eduardoReceived = address(depositor).balance - eduardoBalanceBefore;
-    uint256 fernandaReceived = address(beneficiary).balance - fernandaBalanceBefore;
-    uint256 platformFeesReceived = escrow.pendingFees(owner) - platformFeesBefore;
-
-    console.log("ACORDO ACEITO E EXECUTADO AUTOMATICAMENTE!");
-    console.log("");
-
-    // RESULTADO DO SETTLEMENT
-    console.log("RESULTADO DO ACORDO:");
-    console.log("Eduardo recebeu:", eduardoReceived / 1 ether, "ETH (reembolso por defeito)");
-    console.log("Fernanda recebeu:", fernandaReceived / 1 ether, "ETH (pagamento pelo equipamento)");
-    console.log("Plataforma recebeu:", platformFeesReceived / 1 ether, "ETH (taxa de servico)");
-    console.log("");
-
-    // ANALISE FINANCEIRA
-    console.log("ANALISE FINANCEIRA FINAL:");
-    console.log("Eduardo pagou:", 1000 ether / 1 ether, "ETH");
-    console.log("Eduardo recebeu de volta:", eduardoReceived / 1 ether, "ETH");
-    console.log("Custo real do equipamento:", (1000 ether - eduardoReceived) / 1 ether, "ETH");
-    console.log("Fernanda vendeu por:", fernandaReceived / 1 ether, "ETH (com desconto por defeito)");
-    console.log("Ambos evitaram disputa longa e custosa");
-    console.log("Resolucao rapida e amigavel!");
-    console.log("");
-
-    // VERIFICACAO DO ESTADO FINAL
-    info = escrow.escrows(escrowId);
-    assertEq(uint256(info.state), uint256(IEscrow.EscrowState.COMPLETE), "Escrow deve estar COMPLETE");
-    assertFalse(info.hasSettlementProposal, "Proposta deve ser limpa apos execucao");
-    assertEq(escrow.getEscrowBalance(escrowId, address(0)), 0, "Saldo deve ser zero");
-    
-    console.log("Estado do escrow: COMPLETE");
-    console.log("Acordo executado com sucesso!");
-    console.log("Moral: Nem sempre e preciso disputar - acordos podem ser melhores!");
-
-    // VALIDACOES FINAIS
-    assertEq(eduardoReceived, proposedToEduardo, "Eduardo deve receber valor acordado");
-    assertEq(fernandaReceived, proposedToFernanda, "Fernanda deve receber valor acordado");
-}
-}
-
-

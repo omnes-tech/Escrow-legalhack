@@ -63,7 +63,8 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
      *
      * ANALOGIA: É como um cofre onde cada gaveta guarda um tipo diferente de garantia
      */
-    mapping(uint256 => mapping(address => mapping(IEscrow.TokenType => mapping(uint256 => uint256)))) public escrowGuarantees;
+    mapping(uint256 => mapping(address => mapping(IEscrow.TokenType => mapping(uint256 => uint256)))) public
+        escrowGuarantees;
 
     /**
      * @notice Rastreia quanto dinheiro cada custódia tem em cada tipo de token
@@ -95,13 +96,13 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
 
     uint256 public constant AUTO_EXECUTE_TIMEOUT = 90 days;
     uint256 public constant SETTLEMENT_TIMEOUT = 30 days;
-    
+
     // ========================================================================
     // CONSTRUTOR (Inicialização do Contrato)
     // ========================================================================
 
     /**
-     Construtor - Estabelecendo as Regras do Cartório
+     * Construtor - Estabelecendo as Regras do Cartório
      * @notice Inicializa o contrato com a taxa da plataforma
      *
      * 🏛️ ANALOGIA: É como abrir um cartório - você precisa definir quanto vai cobrar
@@ -209,14 +210,13 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
 
             for (uint256 i = 0; i < customInstallments.length; i++) {
                 _escrowInstallments[escrowId].push(customInstallments[i]); // guarda a folha
-                sum += customInstallments[i].amount;                      // soma o valor
+                sum += customInstallments[i].amount; // soma o valor
             }
 
             if (sum != params.totalAmount) {
                 revert("Sum of custom installments != totalAmount");
                 // → “Os valores do seu carnê não batem com o preço combinado.”
             }
-
         } else {
             // ────────────────────────────────────────────────────────────────
             // CENÁRIO 2 ─ “Quero o carnê padrão” (parcelas iguais)
@@ -224,7 +224,7 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
 
             // a) Dividir o valor total igualmente entre as parcelas
             uint256 installmentAmount = params.totalAmount / params.totalInstallments;
-            uint256 remainder         = params.totalAmount % params.totalInstallments;
+            uint256 remainder = params.totalAmount % params.totalInstallments;
 
             // Segurança: se a divisão deixar “restinho” (centavos quebrados),
             // não permitimos, pois as parcelas precisam ser todas idênticas.
@@ -241,12 +241,11 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
                     InstallmentDetail({
                         dueDate: block.timestamp + ((i + 1) * params.paymentIntervalSeconds),
                         amount: installmentAmount,
-                        paid:  false
+                        paid: false
                     })
                 );
             }
         }
-
 
         // EMITE EVENTO PARA REGISTRAR A CRIAÇÃO
         emit EscrowCreated(
@@ -545,7 +544,7 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
     }
 
     /**
-      startEscrow - Ativando a Custódia
+     * startEscrow - Ativando a Custódia
      * @notice Inicia oficialmente a custódia após garantia fornecida
      *
      * 🎬 ANALOGIA: É como o "Action!" do diretor - tudo está preparado,
@@ -577,7 +576,7 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
     // -------------------------------------------------------
 
     /**
-      calculateInstallmentWithInterest - Calculadora de Juros
+     * calculateInstallmentWithInterest - Calculadora de Juros
      * @notice Calcula valor devido com juros baseado no atraso
      *
      * ⚖️ ANALOGIA: É como o medidor de taxi - enquanto você está no prazo,
@@ -597,27 +596,27 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
      *      Se já estiver atrasado, calcula a quantidade de dias de atraso.
      */
     /**
-    * ─────────────────────────────────────────────────────────────────────────
-    * calculateInstallmentWithInterest
-    * ─────────────────────────────────────────────────────────────────────────
-    * 👀 Visão geral
-    * ──────────────
-    * Pense em um *taxímetro*:
-    *   • Enquanto você está dentro do trajeto/prazo → o preço fica parado.  
-    *   • Passou do trajeto/prazo → o taxímetro começa a girar cobrando juros
-    *     por cada dia de atraso.
-    *
-    * O que essa função faz?
-    *   1. Descobre qual é a próxima “corrida” (parcela) a pagar.
-    *   2. Mede há quanto tempo o relógio está rodando.
-    *   3. Se ainda estamos na “avenida do prazo” → paga-se só o valor base.
-    *   4. Se já entrou na “rua do atraso” → soma juros simples **ou** compostos,
-    *      dependendo da regra escolhida.
-    *
-    * Retorno:
-    *   • amountDue  → valor total que precisa ser pago agora (base + juros).
-    *   • interest   → somente a parte dos juros (0 se não houver atraso).
-    */
+     * ─────────────────────────────────────────────────────────────────────────
+     * calculateInstallmentWithInterest
+     * ─────────────────────────────────────────────────────────────────────────
+     * 👀 Visão geral
+     * ──────────────
+     * Pense em um *taxímetro*:
+     *   • Enquanto você está dentro do trajeto/prazo → o preço fica parado.
+     *   • Passou do trajeto/prazo → o taxímetro começa a girar cobrando juros
+     *     por cada dia de atraso.
+     *
+     * O que essa função faz?
+     *   1. Descobre qual é a próxima “corrida” (parcela) a pagar.
+     *   2. Mede há quanto tempo o relógio está rodando.
+     *   3. Se ainda estamos na “avenida do prazo” → paga-se só o valor base.
+     *   4. Se já entrou na “rua do atraso” → soma juros simples **ou** compostos,
+     *      dependendo da regra escolhida.
+     *
+     * Retorno:
+     *   • amountDue  → valor total que precisa ser pago agora (base + juros).
+     *   • interest   → somente a parte dos juros (0 se não houver atraso).
+     */
     function calculateInstallmentWithInterest(uint256 escrowId)
         public
         view
@@ -662,16 +661,12 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
             // 📈 Juros simples: “cada dia soma X% sobre o valor original”
             interest = EscrowLib.calculateSimpleInterest(
                 baseAmount,
-                e.dailyInterestFeeBP,  // taxa em basis points (1% = 100 bp)
+                e.dailyInterestFeeBP, // taxa em basis points (1% = 100 bp)
                 overdueDays
             );
         } else {
             // 📈 Juros compostos: “juros sobre juros” (efeito bola de neve)
-            interest = EscrowLib.calculateCompoundInterest(
-                baseAmount,
-                e.dailyInterestFeeBP,
-                overdueDays
-            );
+            interest = EscrowLib.calculateCompoundInterest(baseAmount, e.dailyInterestFeeBP, overdueDays);
         }
 
         // 7) Valor final a pagar = bandeirada + “extra” do taxímetro
@@ -681,7 +676,7 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
     }
 
     /**
-      payInstallmentETH - Pagando Parcela em ETH
+     * payInstallmentETH - Pagando Parcela em ETH
      * @notice Permite ao comprador pagar uma parcela com juros se atrasado
      *
      * 💳 ANALOGIA: É como pagar uma conta no banco - se pagar no prazo, sem juros
@@ -699,53 +694,53 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
      * ✅ CEI pattern aplicado
      */
 
-     /**
-    * ─────────────────────────────────────────────────────────────────────────
-    * 1.  payInstallmentETH  –  “pague a prestação usando **dinheiro vivo** (ETH)”
-    * ─────────────────────────────────────────────────────────────────────────
-    *
-    *  🏦  Analogia simples
-    *  ────────────────────
-    *  Imagine que você foi ao banco / lotérica:
-    *   1. Entrega o boleto da prestação.
-    *   2. O caixa confere se você é o **comprador** certo e se o boleto ainda vale.
-    *   3. Se você pagou antes do vencimento → só o valor do boleto.
-    *      Se já venceu → o sistema soma o juro automaticamente.
-    *   4. Pagou a mais sem querer?  O caixa devolve o troco.
-    *   5. Depois que todas as prestações estiverem pagas **e** todo mundo assinar,
-    *      o sistema dá “baixa” sozinho no contrato (auto-complete).
-    *
-    *  Passo a passo no código
-    *  ───────────────────────
-    *  ✅ 1) **Checks** (verificações):
-    *      • A custódia deve estar “ACTIVA”.  
-    *      • Quem paga tem que ser o **depositor**.  
-    *      • Este modo aceita só ETH (`paymentToken == address(0)`).  
-    *      • Ainda restam parcelas a pagar.
-    *
-    *  ✅ 2) Calcula quanto está devendo agora  
-    *      `calculateInstallmentWithInterest` age como o “cálculo do boleto
-    *      + multa” (mostra quanto é a prestação e se há juros).
-    *
-    *  ✅ 3) Se o valor enviado (`msg.value`) é menor → rejeita.
-    *
-    *  ✅ 4) Guarda alguns números **antes** de mexer no estado (CEI pattern):
-    *      • Qual prestação estamos quitando.  
-    *      • Quanto de troco (excesso) precisa ser devolvido.
-    *
-    *  ✅ 5) **Effects**: atualiza todos os campos da custódia:
-    *      • Marca a prestação como paga, atualiza timestamps, etc.  
-    *      • Credita o valor pago na “conta interna” da custódia.  
-    *      • Se houve excesso, já desconta esse troco da conta.
-    *
-    *  ✅ 6) Chama `_checkAutoComplete` **antes** de qualquer transferência externa.
-    *      (Evita reentrância e fecha o contrato se tudo foi quitado + aprovado.)
-    *
-    *  ✅ 7) **Interactions** externas: devolve o troco via `call{value: …}`.
-    *      Se a transferência falhar → reverte.
-    *
-    *  ✅ 8) Emite evento `InstallmentPaid` para que front-ends e indexadores saibam.
-    */
+    /**
+     * ─────────────────────────────────────────────────────────────────────────
+     * 1.  payInstallmentETH  –  “pague a prestação usando **dinheiro vivo** (ETH)”
+     * ─────────────────────────────────────────────────────────────────────────
+     *
+     *  🏦  Analogia simples
+     *  ────────────────────
+     *  Imagine que você foi ao banco / lotérica:
+     *   1. Entrega o boleto da prestação.
+     *   2. O caixa confere se você é o **comprador** certo e se o boleto ainda vale.
+     *   3. Se você pagou antes do vencimento → só o valor do boleto.
+     *      Se já venceu → o sistema soma o juro automaticamente.
+     *   4. Pagou a mais sem querer?  O caixa devolve o troco.
+     *   5. Depois que todas as prestações estiverem pagas **e** todo mundo assinar,
+     *      o sistema dá “baixa” sozinho no contrato (auto-complete).
+     *
+     *  Passo a passo no código
+     *  ───────────────────────
+     *  ✅ 1) **Checks** (verificações):
+     *      • A custódia deve estar “ACTIVA”.
+     *      • Quem paga tem que ser o **depositor**.
+     *      • Este modo aceita só ETH (`paymentToken == address(0)`).
+     *      • Ainda restam parcelas a pagar.
+     *
+     *  ✅ 2) Calcula quanto está devendo agora
+     *      `calculateInstallmentWithInterest` age como o “cálculo do boleto
+     *      + multa” (mostra quanto é a prestação e se há juros).
+     *
+     *  ✅ 3) Se o valor enviado (`msg.value`) é menor → rejeita.
+     *
+     *  ✅ 4) Guarda alguns números **antes** de mexer no estado (CEI pattern):
+     *      • Qual prestação estamos quitando.
+     *      • Quanto de troco (excesso) precisa ser devolvido.
+     *
+     *  ✅ 5) **Effects**: atualiza todos os campos da custódia:
+     *      • Marca a prestação como paga, atualiza timestamps, etc.
+     *      • Credita o valor pago na “conta interna” da custódia.
+     *      • Se houve excesso, já desconta esse troco da conta.
+     *
+     *  ✅ 6) Chama `_checkAutoComplete` **antes** de qualquer transferência externa.
+     *      (Evita reentrância e fecha o contrato se tudo foi quitado + aprovado.)
+     *
+     *  ✅ 7) **Interactions** externas: devolve o troco via `call{value: …}`.
+     *      Se a transferência falhar → reverte.
+     *
+     *  ✅ 8) Emite evento `InstallmentPaid` para que front-ends e indexadores saibam.
+     */
     function payInstallmentETH(uint256 _escrowId) external payable nonReentrant {
         EscrowInfo storage e = _escrows[_escrowId];
 
@@ -791,18 +786,18 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
      * @dev Pay an installment with ERC20 (if paymentToken != address(0)).
      * ✅ CORREÇÃO: CEI pattern aplicado rigorosamente
      */
-     /**
-    * ─────────────────────────────────────────────────────────────────────────
-    * 2.  payInstallmentERC20 – igualzinho, mas com **moeda digital** (token)
-    * ─────────────────────────────────────────────────────────────────────────
-    *
-    *  Só troca:
-    *   • `msg.value` por `_amount` (quantos tokens você aprovou).  
-    *   • ETH → IERC20.  
-    *   • Envia e devolve via `safeTransferFrom` e `safeTransfer`.
-    *
-    *  O resto (checks, cálculo de juros, troco, auto-complete) é idêntico.
-    */
+    /**
+     * ─────────────────────────────────────────────────────────────────────────
+     * 2.  payInstallmentERC20 – igualzinho, mas com **moeda digital** (token)
+     * ─────────────────────────────────────────────────────────────────────────
+     *
+     *  Só troca:
+     *   • `msg.value` por `_amount` (quantos tokens você aprovou).
+     *   • ETH → IERC20.
+     *   • Envia e devolve via `safeTransferFrom` e `safeTransfer`.
+     *
+     *  O resto (checks, cálculo de juros, troco, auto-complete) é idêntico.
+     */
     function payInstallmentERC20(uint256 _escrowId, uint256 _amount) external nonReentrant {
         EscrowInfo storage e = _escrows[_escrowId];
         if (e.state != EscrowState.ACTIVE) revert EscrowNotActive();
@@ -846,7 +841,7 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
     }
 
     /**
-      _checkAutoComplete - Inteligência Artificial de Finalização
+     * _checkAutoComplete - Inteligência Artificial de Finalização
      * @notice Verifica se pode finalizar automaticamente baseado em consenso
      *
      * 🧠 ANALOGIA: É como um assistente inteligente que percebe quando
@@ -863,20 +858,20 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
      * 💎 Garantia liberada imediatamente
      * ⚡ Sem esperas desnecessárias
      * ─────────────────────────────────────────────────────────────────────────
-        * 3.  _checkAutoComplete – o “assistente que fecha o contrato sozinho”
-        * ─────────────────────────────────────────────────────────────────────────
-        *
-        *  Ele faz uma pergunta simples depois de cada pagamento:
-        *  “Já recebi **todo** o dinheiro, ninguém abriu disputa e as três pessoas  
-        *   (comprador, vendedor, árbitro) já apertaram o botão *OK*?”
-        *
-        *  • Se SIM  → muda o estado para `COMPLETE` e dispara `EscrowAutoCompleted`.  
-        *  • Se NÃO → não faz nada; espera pela próxima ação.
-        *
-        *  Resultado: experiência de usuário top 🏅 – você paga a última parcela,
-        *  todo mundo concorda e *puf!* o contrato liquida automaticamente,
-        *  liberando a garantia na mesma hora.
-        */
+     * 3.  _checkAutoComplete – o “assistente que fecha o contrato sozinho”
+     * ─────────────────────────────────────────────────────────────────────────
+     *
+     *  Ele faz uma pergunta simples depois de cada pagamento:
+     *  “Já recebi **todo** o dinheiro, ninguém abriu disputa e as três pessoas
+     *   (comprador, vendedor, árbitro) já apertaram o botão *OK*?”
+     *
+     *  • Se SIM  → muda o estado para `COMPLETE` e dispara `EscrowAutoCompleted`.
+     *  • Se NÃO → não faz nada; espera pela próxima ação.
+     *
+     *  Resultado: experiência de usuário top 🏅 – você paga a última parcela,
+     *  todo mundo concorda e *puf!* o contrato liquida automaticamente,
+     *  liberando a garantia na mesma hora.
+     */
     function _checkAutoComplete(uint256 escrowId) private {
         EscrowInfo storage e = _escrows[escrowId];
 
@@ -892,7 +887,7 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
 
     /**
      * @dev Permite que o comprador pague todas as parcelas restantes de uma só vez.
-     * ✅ CORREÇÃO: CEI pattern aplicado rigorosamente
+     * ✅ CEI pattern aplicado rigorosamente
      */
     function payAllRemaining(uint256 _escrowId) external payable nonReentrant {
         EscrowInfo storage e = _escrows[_escrowId];
@@ -965,7 +960,7 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
     }
 
     /**
-      resolveDispute - Resolvendo Conflitos
+     * resolveDispute - Resolvendo Conflitos
      * @notice Permite resolver disputas com distribuição customizada
      *
      * ⚖️ ANALOGIA: É como um juiz que pode decidir dar 60% para o comprador
@@ -983,30 +978,30 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
      * ✅ CEI pattern rigorosamente aplicado
      */
     /**
-    * ─────────────────────────────────────────────────────────────────────────
-    *  resolveDispute ‒ “o juiz que divide o bolo”
-    * ─────────────────────────────────────────────────────────────────────────
-    *
-    *  ⚖️  Analogia completa
-    *  ────────────────────
-    *  Pense num processo em que comprador e vendedor brigaram.
-    *  • O **juiz** (quem chama a função) analisa tudo e decide:
-    *      “Compra­dor fica com X, vendedor com Y, e a plataforma
-    *       pega sua taxa Z”.
-    *  • Depois da decisão, o caso é arquivado – nada mais pode ser pago
-    *    ou sacado daquele escrow.
-    *
-    *  Estrutura CEI (Checks → Effects → Interactions)
-    *  ───────────────────────────────────────────────
-    *  1️⃣ **CHECKS**   – Confere se tudo está certo  
-    *  2️⃣ **EFFECTS**  – Atualiza o estado interno do contrato  
-    *  3️⃣ **INTERACTIONS** – Transfere dinheiro para fora
-    */
+     * ─────────────────────────────────────────────────────────────────────────
+     *  resolveDispute ‒ “o juiz que divide o bolo”
+     * ─────────────────────────────────────────────────────────────────────────
+     *
+     *  ⚖️  Analogia completa
+     *  ────────────────────
+     *  Pense num processo em que comprador e vendedor brigaram.
+     *  • O **juiz** (quem chama a função) analisa tudo e decide:
+     *      “Compra­dor fica com X, vendedor com Y, e a plataforma
+     *       pega sua taxa Z”.
+     *  • Depois da decisão, o caso é arquivado – nada mais pode ser pago
+     *    ou sacado daquele escrow.
+     *
+     *  Estrutura CEI (Checks → Effects → Interactions)
+     *  ───────────────────────────────────────────────
+     *  1️⃣ **CHECKS**   – Confere se tudo está certo
+     *  2️⃣ **EFFECTS**  – Atualiza o estado interno do contrato
+     *  3️⃣ **INTERACTIONS** – Transfere dinheiro para fora
+     */
     function resolveDispute(
         uint256 _escrowId,
-        uint256 amountToBuyer,   // 💸 quanto o juiz manda devolver ao comprador
-        uint256 amountToSeller,  // 💸 quanto o juiz manda pagar ao vendedor
-        string calldata resolution   // 🔖 texto com a decisão
+        uint256 amountToBuyer, // 💸 quanto o juiz manda devolver ao comprador
+        uint256 amountToSeller, // 💸 quanto o juiz manda pagar ao vendedor
+        string calldata resolution // 🔖 texto com a decisão
     ) external nonReentrant {
         /* ─────── 1️⃣ CHECKS ─────── */
         // Todo mundo (comprador, vendedor, árbitro) já concordou com a decisão?
@@ -1016,17 +1011,17 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
         if (e.state != EscrowState.DISPUTED) revert EscrowNotInDispute(); // tem que estar em disputa!
 
         // Quanto de dinheiro/​token existe hoje na “conta” desse escrow
-        address token = e.paymentToken;                      // address(0) = ETH
-        uint256 balance = escrowBalances[_escrowId][token];  // saldo total
-        uint256 feePlatform = _calculateFee(balance);        // 📈 taxa da plataforma
+        address token = e.paymentToken; // address(0) = ETH
+        uint256 balance = escrowBalances[_escrowId][token]; // saldo total
+        uint256 feePlatform = _calculateFee(balance); // 📈 taxa da plataforma
 
         // Validação: X + Y + taxa não pode ultrapassar o que há na conta
         if (amountToBuyer + amountToSeller + feePlatform > balance) revert InvalidDistribution();
 
         /* ─────── 2️⃣ EFFECTS ─────── */
         escrowBalances[_escrowId][token] = 0; // zera a “conta” interna
-        e.state      = EscrowState.COMPLETE;  // marca como FINALIZADO
-        e.isDisputed = false;                 // remove a flag de disputa
+        e.state = EscrowState.COMPLETE; // marca como FINALIZADO
+        e.isDisputed = false; // remove a flag de disputa
 
         /* ─────── 3️⃣ INTERACTIONS ─────── */
         if (token == address(0)) {
@@ -1037,19 +1032,18 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
             pendingFees[owner()] += feePlatform;
 
             // Envia ETH pro comprador
-            (bool buyerOk, )  = payable(e.depositor   ).call{value: amountToBuyer }("");
-            require(buyerOk,  "Buyer transfer failed");
+            (bool buyerOk,) = payable(e.depositor).call{value: amountToBuyer}("");
+            require(buyerOk, "Buyer transfer failed");
 
             // Envia ETH pro vendedor
-            (bool sellerOk, ) = payable(e.beneficiary).call{value: amountToSeller}("");
+            (bool sellerOk,) = payable(e.beneficiary).call{value: amountToSeller}("");
             require(sellerOk, "Seller transfer failed");
-
         } else {
             /* Pagamentos em ERC-20 ------------------------------------------ */
             IERC20 erc20 = IERC20(token);
 
             // Transfere direto: ERC-20 não sofre o mesmo risco de reentrância
-            erc20.safeTransfer(e.depositor,   amountToBuyer);
+            erc20.safeTransfer(e.depositor, amountToBuyer);
             erc20.safeTransfer(e.beneficiary, amountToSeller);
 
             if (feePlatform > 0) {
@@ -1060,14 +1054,13 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
         /* 🎉 Registro público da decisão */
         emit DisputeResolved(
             _escrowId,
-            msg.sender,      // quem resolveu
-            resolution,      // texto da sentença
+            msg.sender, // quem resolveu
+            resolution, // texto da sentença
             block.timestamp,
-            msg.sender,      // placeholder (ex-árbitro) – manter compatibilidade
-            ""               // dados extra (não usado aqui)
+            msg.sender, // placeholder (ex-árbitro) – manter compatibilidade
+            "" // dados extra (não usado aqui)
         );
     }
-
 
     // -------------------------------------------------------
     // Approval & Final / Partial Withdrawals
@@ -1082,10 +1075,7 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
     *    abrir, criar ou arbitrar escrows.
     *  Implementação: um simples `for` que marca `true/false` no mapa `escrowOwners`.
     */
-    function setEscrowOwnersApproval(address[] memory _escrowOwners, bool _approval)
-        external
-        onlyOwner
-    {
+    function setEscrowOwnersApproval(address[] memory _escrowOwners, bool _approval) external onlyOwner {
         for (uint256 i = 0; i < _escrowOwners.length; i++) {
             escrowOwners[_escrowOwners[i]] = _approval; // entrega ou recolhe a chave
         }
@@ -1106,15 +1096,12 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
     */
     function setReleaseApproval(uint256 _escrowId, bool _approval) external {
         EscrowInfo storage e = _escrows[_escrowId];
-        require(
-            e.state == EscrowState.ACTIVE || e.state == EscrowState.DISPUTED,
-            "Escrow not active or disputed"
-        );
+        require(e.state == EscrowState.ACTIVE || e.state == EscrowState.DISPUTED, "Escrow not active or disputed");
 
-        if (msg.sender == e.depositor)         e.depositorApproved   = _approval;
-        else if (msg.sender == e.beneficiary)  e.beneficiaryApproved = _approval;
-        else if (msg.sender == e.escrowOwner)  e.escrowOwnerApproved = _approval;
-        else revert("Not an escrow participant");
+        if (msg.sender == e.depositor) e.depositorApproved = _approval;
+        else if (msg.sender == e.beneficiary) e.beneficiaryApproved = _approval;
+        else if (msg.sender == e.escrowOwner) e.escrowOwnerApproved = _approval;
+        else revert InvalidCaller();
 
         // Se todo mundo está bem e não há briga, talvez feche automático
         if (e.state == EscrowState.ACTIVE && !e.isDisputed) {
@@ -1148,22 +1135,19 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
     function withdrawFunds(uint256 _escrowId) external nonReentrant {
         EscrowInfo storage e = _escrows[_escrowId];
         require(e.beneficiary == msg.sender, "Only beneficiary can withdraw");
-        require(
-            e.state == EscrowState.ACTIVE || e.state == EscrowState.COMPLETE,
-            "Escrow not in withdrawable state"
-        );
+        require(e.state == EscrowState.ACTIVE || e.state == EscrowState.COMPLETE, "Escrow not in withdrawable state");
         require(!e.isDisputed, "Escrow is disputed");
 
         if (e.state == EscrowState.ACTIVE) {
             require(isAllApproved(_escrowId), "Not all parties approved");
         }
 
-        address token   = e.paymentToken;                 // address(0) = ETH
+        address token = e.paymentToken; // address(0) = ETH
         uint256 balance = escrowBalances[_escrowId][token];
         require(balance > 0, "No balance to withdraw");
 
         uint256 feePlatform = _calculateFee(balance);
-        uint256 netAmount   = balance - feePlatform;
+        uint256 netAmount = balance - feePlatform;
 
         /* EFFECTS */
         escrowBalances[_escrowId][token] = 0;
@@ -1191,12 +1175,10 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
     *    de volta.  
     *  • Suporta ETH, ERC-20, ERC-721, ERC-1155.
     */
-    function returnGuarantee(
-        uint256 _escrowId,
-        IEscrow.TokenType _type,
-        address _tokenAddress,
-        uint256 _tokenId
-    ) external nonReentrant {
+    function returnGuarantee(uint256 _escrowId, IEscrow.TokenType _type, address _tokenAddress, uint256 _tokenId)
+        external
+        nonReentrant
+    {
         EscrowInfo storage e = _escrows[_escrowId];
         require(e.depositor == msg.sender, "Only depositor can reclaim guarantee");
         require(e.state == EscrowState.COMPLETE, "Escrow not complete");
@@ -1240,12 +1222,12 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
         require(e.allowBeneficiaryWithdrawPartial, "Partial withdrawal not allowed");
         require(isAllApproved(_escrowId), "Not all parties approved");
 
-        address token   = e.paymentToken;
+        address token = e.paymentToken;
         uint256 balance = escrowBalances[_escrowId][token];
         require(_amount > 0 && _amount <= balance, "Invalid partial amount");
 
         uint256 feePlatform = _calculateFee(_amount);
-        uint256 netAmount   = _amount - feePlatform;
+        uint256 netAmount = _amount - feePlatform;
 
         escrowBalances[_escrowId][token] = balance - _amount; // EFFECT
 
@@ -1279,7 +1261,6 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
 
         emit FeesWithdrawn(msg.sender, amount);
     }
-
 
     // -------------------------------------------------------
     // View Functions
@@ -1365,7 +1346,7 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
     }
 
     /**
-      proposeSettlement - Propondo Acordo
+     * proposeSettlement - Propondo Acordo
      * @notice Permite propostas de acordo antes da arbitragem
      *
      * 🕊️ ANALOGIA: É como quando dois vizinhos brigam e decidem
@@ -1487,7 +1468,7 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
     }
 
     /**
-     autoExecuteTransaction - Execução Automática de Backup
+     * autoExecuteTransaction - Execução Automática de Backup
      * @notice Executa automaticamente após 90 dias se não há consenso
      *
      * ⏰ ANALOGIA: É como um "plano B" automático - se as partes não chegarem
@@ -1502,7 +1483,7 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
      * ORDEM CORRETA DAS VALIDAÇÕES:
      * 1️⃣ Não disputado
      * 2️⃣ Estado ACTIVE
-     * 3️⃣ Pagamentos completos 
+     * 3️⃣ Pagamentos completos
      * 4️⃣ Deadline atingido
      */
     function autoExecuteTransaction(uint256 escrowId) external nonReentrant {
@@ -1541,7 +1522,7 @@ contract Escrow is BaseEscrow, IERC721Receiver, IERC1155Receiver {
     }
 
     /**
-      emergencyTimeout - Intervenção de Emergência
+     * emergencyTimeout - Intervenção de Emergência
      * @notice Última proteção contra fundos permanentemente presos
      *
      * 🆘 ANALOGIA: É como chamar o bombeiro quando a situação

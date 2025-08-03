@@ -8,9 +8,17 @@ optimizer_runs = 0
 viaIR = true
 
 remappings = [
-    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/"
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "@chainlink/contracts/=lib/chainlink/contracts"
 ]
 
+[rpc_endpoints]
+base = "${BASE_RPC_URL}"
+amoy = "${AMOY_RPC_URL}"
+
+[etherscan]
+base = { key = "${ETHERSCAN_API_KEY}" }
+amoy = { key = "${POLYGONSCAN_API_KEY}" }
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 
